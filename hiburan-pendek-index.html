@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#111827">
+  <title>Hiburan Pendek</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <style>
+    :root { color-scheme: dark; --bg:#0b1020; --panel:#151c30; --muted:#9aa6c2; --accent:#8b5cf6; --line:#28314a; }
+    * { box-sizing:border-box; }
+    body { margin:0; background:var(--bg); color:#f8fafc; font-family:system-ui,-apple-system,Segoe UI,sans-serif; }
+    header { padding:20px 16px 14px; background:linear-gradient(135deg,#4c1d95,#111827 75%); position:sticky; top:0; z-index:2; border-bottom:1px solid var(--line); }
+    .brand { display:flex; align-items:center; gap:10px; font-size:22px; font-weight:800; }
+    .logo { width:40px;height:40px;border-radius:13px;background:linear-gradient(135deg,#a78bfa,#7c3aed);display:grid;place-items:center;font-size:22px; }
+    .sub { color:#d4d4e8;font-size:12px;margin-top:4px; }
+    main { max-width:760px; margin:auto; padding:16px 14px 90px; }
+    .search { width:100%; padding:13px 14px; border:1px solid var(--line); border-radius:14px; background:#11182a; color:white; font-size:15px; outline:none; }
+    .chips { display:flex; gap:8px; overflow-x:auto; padding:13px 0 17px; }
+    .chip { flex:0 0 auto; border:1px solid var(--line); color:#dbe4ff; background:#151c30; border-radius:999px; padding:8px 13px; cursor:pointer; }
+    .chip.active { background:var(--accent); border-color:var(--accent); color:white; }
+    h2 { font-size:17px; margin:8px 0 12px; }
+    .featured { background:var(--panel); border:1px solid var(--line); border-radius:18px; overflow:hidden; margin-bottom:22px; }
+    .player { aspect-ratio:16/9; background:#05070d; }
+    .player iframe { width:100%; height:100%; border:0; }
+    .player-note { padding:12px 14px; color:var(--muted); font-size:12px; }
+    .grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
+    .video-card { border:1px solid var(--line); background:var(--panel); border-radius:15px; overflow:hidden; cursor:pointer; color:inherit; text-align:left; padding:0; }
+    .thumb { aspect-ratio:16/10; display:grid; place-items:center; font-size:34px; background:linear-gradient(135deg,#312e81,#7c3aed 55%,#0f172a); }
+    .video-card:nth-child(3n+2) .thumb { background:linear-gradient(135deg,#064e3b,#0f766e,#111827); }
+    .video-card:nth-child(3n) .thumb { background:linear-gradient(135deg,#7f1d1d,#c2410c,#111827); }
+    .card-info { padding:11px; }
+    .card-title { font-size:14px; font-weight:700; line-height:1.35; }
+    .card-meta { color:var(--muted); font-size:11px; margin-top:6px; }
+    .empty { color:var(--muted); padding:20px 0; display:none; }
+    .notice { margin-top:22px; border:1px solid var(--line); border-radius:14px; padding:13px; color:var(--muted); font-size:12px; line-height:1.5; }
+    nav { position:fixed; bottom:0; left:0; right:0; z-index:3; display:flex; justify-content:space-around; padding:10px 8px calc(10px + env(safe-area-inset-bottom)); background:#0d1324ee; border-top:1px solid var(--line); backdrop-filter:blur(12px); }
+    nav button { background:none; border:0; color:#b9c3dc; font-size:12px; cursor:pointer; padding:4px 12px; }
+    nav button span { display:block; font-size:19px; margin-bottom:3px; }
+    footer { text-align:center; color:#68748f; font-size:11px; padding:24px 0 5px; }
+    @media(min-width:600px){ .grid{grid-template-columns:repeat(3,minmax(0,1fr));} }
+  </style>
+
+  <!-- MONETAG: setelah app ditambahkan di dashboard Monetag, tempel SDK resmi yang diberikan Monetag di area ini. Jangan menebak atau memakai tag milik orang lain. -->
+</head>
+<body>
+  <header>
+    <div class="brand"><div class="logo">▶</div><div>Hiburan Pendek<div class="sub">Video singkat untuk waktu santai</div></div></div>
+  </header>
+  <main>
+    <input id="search" class="search" type="search" placeholder="Cari video hiburan..." aria-label="Cari video">
+    <div class="chips" id="chips">
+      <button class="chip active" data-category="Semua">Semua</button>
+      <button class="chip" data-category="Lucu">😂 Lucu</button>
+      <button class="chip" data-category="Musik">🎵 Musik</button>
+      <button class="chip" data-category="Fakta">🤯 Fakta</button>
+      <button class="chip" data-category="Santai">🌿 Santai</button>
+    </div>
+
+    <h2 id="player-heading">▶ Tonton video</h2>
+    <section class="featured">
+      <div class="player" id="player">
+        <iframe id="video-frame" src="https://www.youtube-nocookie.com/embed/aqz-KE-bpKQ" title="Video contoh" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen loading="lazy" referrerpolicy="strict-origin-when-cross-origin"></iframe>
+      </div>
+      <div class="player-note" id="player-note">Video contoh untuk menguji pemutar. Ganti dengan video yang kamu punya hak untuk tayangkan.</div>
+    </section>
+
+    <h2>Video pilihan</h2>
+    <div class="grid" id="video-grid"></div>
+    <div class="empty" id="empty">Video tidak ditemukan. Coba kata kunci lain.</div>
+
+    <div class="notice">
+      <strong>Catatan pemilik:</strong> ini adalah template awal. Daftar video saat ini adalah contoh. Ganti ID video di kode dengan video milik sendiri atau video yang diizinkan untuk disematkan. Integrasi iklan belum aktif sampai SDK resmi Monetag dipasang.
+    </div>
+    <footer>Hiburan Pendek • Nikmati konten secara bertanggung jawab</footer>
+  </main>
+
+  <nav>
+    <button id="home-btn"><span>⌂</span>Beranda</button>
+    <button id="videos-btn"><span>▶</span>Video</button>
+    <button id="search-btn"><span>⌕</span>Cari</button>
+    <button id="telegram-btn"><span>↗</span>Telegram</button>
+  </nav>
+
+  <script>
+    const tg = window.Telegram && window.Telegram.WebApp;
+    if (tg) { tg.ready(); tg.expand(); try { tg.setHeaderColor('#111827'); tg.setBackgroundColor('#0b1020'); } catch(e) {} }
+
+    // Ganti videoId dengan ID video YouTube yang boleh disematkan, atau sesuaikan pemutar untuk sumber video milikmu.
+    const videos = [
+      { title:'Video hiburan pilihan', category:'Lucu', emoji:'😂', videoId:'aqz-KE-bpKQ', duration:'Video contoh' },
+      { title:'Musik untuk menemani santai', category:'Musik', emoji:'🎵', videoId:'ScMzIvxBSi4', duration:'Video contoh' },
+      { title:'Fakta menarik hari ini', category:'Fakta', emoji:'🤯', videoId:'ysz5S6PUM-U', duration:'Video contoh' },
+      { title:'Pemandangan menenangkan', category:'Santai', emoji:'🌿', videoId:'jfKfPfyJRdk', duration:'Video contoh' }
+    ];
+    let category = 'Semua';
+    const grid = document.getElementById('video-grid');
+    const search = document.getElementById('search');
+    const empty = document.getElementById('empty');
+
+    function render() {
+      const q = search.value.trim().toLowerCase();
+      const filtered = videos.filter(v => (category === 'Semua' || v.category === category) && v.title.toLowerCase().includes(q));
+      grid.innerHTML = '';
+      filtered.forEach(v => {
+        const btn = document.createElement('button');
+        btn.className = 'video-card';
+        btn.innerHTML = `<div class="thumb">${v.emoji}</div><div class="card-info"><div class="card-title"></div><div class="card-meta"></div></div>`;
+        btn.querySelector('.card-title').textContent = v.title;
+        btn.querySelector('.card-meta').textContent = v.category + ' • ' + v.duration;
+        btn.addEventListener('click', () => {
+          document.getElementById('video-frame').src = 'https://www.youtube-nocookie.com/embed/' + encodeURIComponent(v.videoId);
+          document.getElementById('player-heading').textContent = '▶ ' + v.title;
+          document.getElementById('player-note').textContent = 'Jika video tidak bisa diputar, pemilik video mungkin menonaktifkan penyematan.';
+          window.scrollTo({top:0, behavior:'smooth'});
+        });
+        grid.appendChild(btn);
+      });
+      empty.style.display = filtered.length ? 'none' : 'block';
+    }
+    document.getElementById('chips').addEventListener('click', e => {
+      const btn = e.target.closest('button[data-category]');
+      if (!btn) return;
+      category = btn.dataset.category;
+      document.querySelectorAll('.chip').forEach(c => c.classList.toggle('active', c === btn));
+      render();
+    });
+    search.addEventListener('input', render);
+    document.getElementById('home-btn').addEventListener('click', () => { category='Semua'; search.value=''; document.querySelectorAll('.chip').forEach(c=>c.classList.toggle('active',c.dataset.category==='Semua')); render(); window.scrollTo({top:0,behavior:'smooth'}); });
+    document.getElementById('videos-btn').addEventListener('click', () => document.getElementById('video-grid').scrollIntoView({behavior:'smooth'}));
+    document.getElementById('search-btn').addEventListener('click', () => { search.focus(); window.scrollTo({top:0,behavior:'smooth'}); });
+    document.getElementById('telegram-btn').addEventListener('click', () => { if(tg) tg.close(); else window.open('https://telegram.org/','_blank','noopener'); });
+    render();
+  </script>
+</body>
+</html>
