@@ -1,6 +1,5 @@
-
 <!DOCTYPE html>
-<html lang="es">
+<html lang="id">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -13,62 +12,69 @@ h1{color:#ff5367}
 .card{background:#1b1b25;padding:18px;border-radius:14px;margin:16px 0}
 input,textarea,select,button{width:100%;padding:13px;margin:7px 0;border-radius:9px;border:1px solid #414151;font-size:15px}
 input,textarea,select{background:#101017;color:white}
-button{background:#ed3548;color:white;border:0;font-weight:bold}
-button.secondary{background:#333342}
+button{background:#ed3548;color:white;border:0;font-weight:bold;cursor:pointer}
+button:disabled{opacity:.6}
+.secondary{background:#333342}
 small{color:#bbb}
-#status{white-space:pre-wrap;color:#ffd166}
+#status,#loginStatus{white-space:pre-wrap;color:#ffd166}
 .item{border-top:1px solid #444;padding:12px 0;overflow-wrap:anywhere}
-a{color:#ff7585}
+[hidden]{display:none!important}
 </style>
 </head>
 <body>
 <main>
-<h1>▶ CineBreve Admin</h1>
-<p>Panel de administración de películas y videos.</p>
+<h1>▶ Admin CineBreve</h1>
+<p>Kelola film dan video CineBreve.</p>
 
 <section class="card" id="loginBox">
-<h2>Iniciar sesión</h2>
-<p><small>Recibirás un enlace de acceso por correo electrónico.</small></p>
-<input id="email" type="email" placeholder="Correo del administrador">
-<button id="loginBtn">Enviar enlace de acceso</button>
+<h2>Masuk Admin</h2>
+<form id="loginForm">
+<label>Email admin</label>
+<input id="email" type="email" autocomplete="username" required placeholder="Email admin">
+<label>Kata sandi</label>
+<input id="password" type="password" autocomplete="current-password" required placeholder="Kata sandi">
+<button id="loginBtn" type="submit">Masuk</button>
+</form>
+<p id="loginStatus"></p>
 </section>
 
 <section class="card" id="panel" hidden>
-<h2>Subir una película</h2>
+<h2>Unggah Film</h2>
 <p id="account"></p>
-<form id="filmForm">
-<label>Título</label>
-<input id="title" required placeholder="Título de la película">
 
-<label>Categoría</label>
+<form id="filmForm">
+<label>Judul film</label>
+<input id="title" required placeholder="Judul film">
+
+<label>Kategori</label>
 <select id="category">
 <option>Drama</option>
-<option>Romance</option>
-<option>Acción</option>
-<option>Comedia</option>
-<option>Suspenso</option>
-<option>Terror</option>
-<option>Otros</option>
+<option>Romansa</option>
+<option>Aksi</option>
+<option>Komedi</option>
+<option>Thriller</option>
+<option>Horor</option>
+<option>Lainnya</option>
 </select>
 
-<label>Descripción</label>
-<textarea id="description" rows="3" placeholder="Descripción de la película"></textarea>
+<label>Deskripsi</label>
+<textarea id="description" rows="3" placeholder="Deskripsi film"></textarea>
 
-<label>Imagen de portada (URL)</label>
+<label>URL gambar poster</label>
 <input id="poster" type="url" required placeholder="https://...">
 
-<label>Archivo de video (MP4, WebM o MOV)</label>
+<label>File video (MP4, WebM, MOV)</label>
 <input id="video" type="file" accept="video/mp4,video/webm,video/quicktime" required>
-<small>El archivo se subirá al almacenamiento de Supabase.</small>
+<small>Batas ukuran dari halaman ini adalah 500 MB.</small>
 
-<button id="saveBtn" type="submit">Subir y publicar</button>
+<button id="saveBtn" type="submit">Unggah dan Terbitkan</button>
 </form>
 
 <p id="status"></p>
 <hr>
-<h2>Películas guardadas</h2>
-<div id="films">Cargando...</div>
-<button class="secondary" id="logoutBtn">Cerrar sesión</button>
+<h2>Daftar Film</h2>
+<div id="films">Memuat daftar film...</div>
+<button class="secondary" id="logoutBtn" type="button">Keluar</button>
 </section>
 </main>
 
@@ -82,118 +88,199 @@ const BUCKET = "cinebreve-videos";
 const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 const $ = id => document.getElementById(id);
 
-function message(text){$("status").textContent=text;}
+function status(text){
+  $("status").textContent = text;
+}
 
-async function refresh(){
-  const {data,error}=await db.from("films")
+async function refreshFilms(){
+  const {data,error} = await db.from("films")
     .select("*").order("created_at",{ascending:false});
-  if(error){$("films").textContent="Error: "+error.message;return;}
-  $("films").innerHTML="";
-  if(!data.length){$("films").textContent="Todavía no hay películas.";return;}
-  data.forEach(f=>{
-    const item=document.createElement("div");
-    item.className="item";
-    const name=document.createElement("strong");
-    name.textContent=f.title;
-    const info=document.createElement("p");
-    info.textContent=f.category||"";
-    const del=document.createElement("button");
-    del.className="secondary";
-    del.textContent="Eliminar película";
-    del.onclick=async()=>{
-      if(!confirm("¿Eliminar "+f.title+" de la lista?"))return;
-      const {error}=await db.from("films").delete().eq("id",f.id);
-      if(error){message(error.message);return;}
-      refresh();
+
+  if(error){
+    $("films").textContent = "Gagal memuat film: " + error.message;
+    return;
+  }
+
+  $("films").replaceChildren();
+
+  if(!data || data.length === 0){
+    $("films").textContent = "Belum ada film.";
+    return;
+  }
+
+  data.forEach(f => {
+    const item = document.createElement("div");
+    item.className = "item";
+
+    const name = document.createElement("strong");
+    name.textContent = f.title || "Tanpa judul";
+
+    const info = document.createElement("p");
+    info.textContent = f.category || "";
+
+    const del = document.createElement("button");
+    del.className = "secondary";
+    del.textContent = "Hapus film";
+
+    del.onclick = async () => {
+      if(!confirm("Yakin ingin menghapus film ini dari daftar?")) return;
+
+      const {error} = await db.from("films")
+        .delete().eq("id",f.id);
+
+      if(error){
+        status("Gagal menghapus film: " + error.message);
+        return;
+      }
+
+      status("Film dihapus dari daftar.");
+      await refreshFilms();
     };
+
     item.append(name,info,del);
     $("films").append(item);
   });
 }
 
 async function showSession(){
-  const {data:{session}}=await db.auth.getSession();
-  const user=session?.user;
-  const allowed=user?.email?.toLowerCase()===ADMIN_EMAIL.toLowerCase();
-  $("loginBox").hidden=!!allowed;
-  $("panel").hidden=!allowed;
-  if(user&&!allowed){
-    $("loginBox").hidden=false;
-    $("panel").hidden=true;
-    message("Esta cuenta no está autorizada como administrador.");
-    await db.auth.signOut();
+  const {data,error} = await db.auth.getSession();
+
+  if(error){
+    $("loginStatus").textContent = error.message;
+    return;
   }
+
+  const user = data.session?.user;
+  const allowed =
+    user?.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase();
+
+  $("loginBox").hidden = !!allowed;
+  $("panel").hidden = !allowed;
+
+  if(user && !allowed){
+    $("loginStatus").textContent = "Email ini tidak diizinkan.";
+    await db.auth.signOut();
+    return;
+  }
+
   if(allowed){
-    $("account").textContent="Sesión: "+user.email;
-    refresh();
+    $("account").textContent = "Login sebagai: " + user.email;
+    await refreshFilms();
   }
 }
 
-$("loginBtn").onclick=async()=>{
-  const email=$("email").value.trim();
-  if(email.toLowerCase()!==ADMIN_EMAIL.toLowerCase()){
-    alert("Correo no autorizado.");return;
-  }
-  const {error}=await db.auth.signInWithOtp({
-    email,
-    options:{emailRedirectTo:location.href.split("#")[0]}
-  });
-  alert(error?error.message:"Revisa tu correo y abre el enlace de acceso.");
-};
-
-$("filmForm").onsubmit=async e=>{
+$("loginForm").addEventListener("submit",async e => {
   e.preventDefault();
-  const {data:{session}}=await db.auth.getSession();
-  if(session?.user?.email?.toLowerCase()!==ADMIN_EMAIL.toLowerCase()){
-    message("Inicia sesión con la cuenta de administrador.");return;
+
+  const email = $("email").value.trim();
+  const password = $("password").value;
+
+  if(email.toLowerCase() !== ADMIN_EMAIL.toLowerCase()){
+    $("loginStatus").textContent = "Email admin tidak sesuai.";
+    return;
   }
 
-  const file=$("video").files[0];
-  if(!file){message("Selecciona un archivo de video.");return;}
-  if(file.size>500*1024*1024){
-    message("El archivo supera el límite de 500 MB.");return;
-  }
-  if(!["video/mp4","video/webm","video/quicktime"].includes(file.type)){
-    message("Formato no admitido. Usa MP4, WebM o MOV.");return;
-  }
-
-  $("saveBtn").disabled=true;
-  message("Subiendo video... No cierres esta página.");
+  $("loginBtn").disabled = true;
+  $("loginStatus").textContent = "Sedang masuk...";
 
   try{
-    const safeName=file.name.replace(/[^a-zA-Z0-9._-]/g,"_");
-    const path=Date.now()+"-"+safeName;
-    const {error:uploadError}=await db.storage.from(BUCKET)
-      .upload(path,file,{contentType:file.type,upsert:false});
-    if(uploadError)throw uploadError;
+    const {error} = await db.auth.signInWithPassword({
+      email,
+      password
+    });
 
-    const {data:publicData}=db.storage.from(BUCKET).getPublicUrl(path);
-    const {error:insertError}=await db.from("films").insert({
+    if(error) throw error;
+
+    $("loginStatus").textContent = "";
+    await showSession();
+
+  }catch(err){
+    $("loginStatus").textContent =
+      "Login gagal: " + err.message +
+      ". Pastikan akun sudah memiliki kata sandi di Supabase.";
+  }finally{
+    $("loginBtn").disabled = false;
+  }
+});
+
+$("filmForm").addEventListener("submit",async e => {
+  e.preventDefault();
+
+  const {data:{session}} = await db.auth.getSession();
+
+  if(session?.user?.email?.toLowerCase() !== ADMIN_EMAIL.toLowerCase()){
+    status("Silakan masuk menggunakan akun admin.");
+    return;
+  }
+
+  const file = $("video").files[0];
+
+  if(!file){
+    status("Pilih file video terlebih dahulu.");
+    return;
+  }
+
+  if(file.size > 500 * 1024 * 1024){
+    status("Ukuran video melebihi 500 MB.");
+    return;
+  }
+
+  if(!["video/mp4","video/webm","video/quicktime"].includes(file.type)){
+    status("Gunakan format MP4, WebM, atau MOV.");
+    return;
+  }
+
+  $("saveBtn").disabled = true;
+  status("Sedang mengunggah video. Jangan tutup halaman ini...");
+
+  try{
+    const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g,"_");
+    const path = Date.now() + "-" + safeName;
+
+    const {error:uploadError} = await db.storage
+      .from(BUCKET)
+      .upload(path,file,{
+        contentType:file.type,
+        upsert:false
+      });
+
+    if(uploadError) throw uploadError;
+
+    const {data:publicData} = db.storage
+      .from(BUCKET)
+      .getPublicUrl(path);
+
+    const {error:insertError} = await db.from("films").insert({
       title:$("title").value.trim(),
       category:$("category").value,
       description:$("description").value.trim(),
       poster:$("poster").value.trim(),
       video_url:publicData.publicUrl
     });
-    if(insertError)throw insertError;
 
-    message("¡Película subida y publicada correctamente!");
+    if(insertError) throw insertError;
+
+    status("Film berhasil diunggah!");
     $("filmForm").reset();
-    await refresh();
-  }catch(err){
-    message("No se pudo completar la operación: "+err.message+
-      "\nComprueba los permisos de Supabase y el bucket de almacenamiento.");
-  }finally{
-    $("saveBtn").disabled=false;
-  }
-};
+    await refreshFilms();
 
-$("logoutBtn").onclick=async()=>{
+  }catch(err){
+    status("Gagal: " + err.message +
+      "\nPeriksa tabel films, izin akses Supabase, dan bucket video.");
+  }finally{
+    $("saveBtn").disabled = false;
+  }
+});
+
+$("logoutBtn").addEventListener("click",async()=>{
   await db.auth.signOut();
   location.reload();
-};
+});
 
-db.auth.onAuthStateChange(()=>setTimeout(showSession,0));
+db.auth.onAuthStateChange(()=>{
+  showSession();
+});
+
 showSession();
 </script>
 </body>
