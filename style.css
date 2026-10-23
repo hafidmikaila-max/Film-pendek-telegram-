@@ -13,3 +13,108 @@
 #adsterra-home-slot{width:100%;min-width:0;min-height:90px;display:flex;align-items:center;justify-content:center;text-align:center;color:#8f98aa;overflow:hidden}
 #adsterra-home-slot p{margin:18px 0;font-size:13px}
 #adsterra-home-slot iframe,#adsterra-home-slot img{max-width:100%;box-sizing:border-box}
+
+/* FIX TAMPILAN KATALOG CINEBREVE */
+.movies {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  width: 100%;
+}
+
+.movie-card {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #fff;
+  text-align: left;
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.movie-card > img,
+.poster-placeholder {
+  display: block;
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  object-fit: cover;
+  border-radius: 14px;
+  background: #292934;
+}
+
+.poster-placeholder {
+  display: grid;
+  place-items: center;
+  color: #ed3548;
+  font-size: 32px;
+}
+
+.movie-info {
+  display: block;
+  min-width: 0;
+  padding: 0 2px 8px;
+}
+
+.movie-info b {
+  display: block;
+  margin-top: 9px;
+  font-size: 15px;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.movie-info small {
+  display: block;
+  margin-top: 5px;
+  color: #b8b8c5;
+  font-size: 12px;
+}
+
+#cats button {
+  padding: 9px 14px;
+  border: 1px solid #383844;
+  border-radius: 24px;
+  background: #1b1b24;
+  color: white;
+}
+
+#cats button.active {
+  background: #ed3548;
+}
+
+#status:empty {
+  display: none;
+}
+
+@media (max-width: 600px) {
+  .app {
+    margin: 0 auto;
+    padding: 18px 14px;
+    border-radius: 0;
+    min-height: 100vh;
+  }
+
+  .movies {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  .movie-info b {
+    font-size: 14px;
+  }
+
+  .hero > div {
+    padding: 20px;
+  }
+
+  .modal {
+    padding: 8px;
+  }
+
+  .modalbox {
+    padding: 13px;
+  }
+}
