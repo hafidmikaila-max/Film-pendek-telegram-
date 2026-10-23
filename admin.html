@@ -60,12 +60,13 @@ small{color:#bbb}
 <label>Deskripsi</label>
 <textarea id="description" rows="3" placeholder="Deskripsi film"></textarea>
 
-<label>URL gambar poster</label>
-<input id="poster" type="url" required placeholder="https://...">
+<label>Poster film (pilih gambar dari HP)</label>
+<input id="poster" type="file" accept="image/jpeg,image/png,image/webp,image/gif" required>
+<small>Pilih gambar dari galeri HP. Format JPG, PNG, WebP, atau GIF. Maksimal 10 MB.</small>
 
 <label>File video (MP4, WebM, MOV)</label>
 <input id="video" type="file" accept="video/mp4,video/webm,video/quicktime" required>
-<small>Batas ukuran dari halaman ini adalah 500 MB.</small>
+<small>Batas ukuran video adalah 500 MB.</small>
 
 <button id="saveBtn" type="submit">Unggah dan Terbitkan</button>
 </form>
@@ -213,7 +214,23 @@ $("filmForm").addEventListener("submit",async e => {
     return;
   }
 
+  const posterFile = $("poster").files[0];
   const file = $("video").files[0];
+
+  if(!posterFile){
+    status("Pilih gambar poster dari HP terlebih dahulu.");
+    return;
+  }
+
+  if(!["image/jpeg","image/png","image/webp","image/gif"].includes(posterFile.type)){
+    status("Format poster harus JPG, PNG, WebP, atau GIF.");
+    return;
+  }
+
+  if(posterFile.size > 10 * 1024 * 1024){
+    status("Ukuran poster melebihi 10 MB.");
+    return;
+  }
 
   if(!file){
     status("Pilih file video terlebih dahulu.");
@@ -231,15 +248,31 @@ $("filmForm").addEventListener("submit",async e => {
   }
 
   $("saveBtn").disabled = true;
-  status("Sedang mengunggah video. Jangan tutup halaman ini...");
+  status("Sedang mengunggah poster dan video. Jangan tutup halaman ini...");
 
   try{
+    const safePosterName = posterFile.name.replace(/[^a-zA-Z0-9._-]/g,"_");
+    const posterPath = "posters/" + Date.now() + "-" + safePosterName;
+
+    const {error:posterUploadError} = await db.storage
+      .from(BUCKET)
+      .upload(posterPath,posterFile,{
+        contentType:posterFile.type,
+        upsert:false
+      });
+
+    if(posterUploadError) throw posterUploadError;
+
+    const {data:posterPublicData} = db.storage
+      .from(BUCKET)
+      .getPublicUrl(posterPath);
+
     const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g,"_");
-    const path = Date.now() + "-" + safeName;
+    const videoPath = "videos/" + Date.now() + "-" + safeName;
 
     const {error:uploadError} = await db.storage
       .from(BUCKET)
-      .upload(path,file,{
+      .upload(videoPath,file,{
         contentType:file.type,
         upsert:false
       });
@@ -248,13 +281,13 @@ $("filmForm").addEventListener("submit",async e => {
 
     const {data:publicData} = db.storage
       .from(BUCKET)
-      .getPublicUrl(path);
+      .getPublicUrl(videoPath);
 
     const {error:insertError} = await db.from("films").insert({
       title:$("title").value.trim(),
       category:$("category").value,
       description:$("description").value.trim(),
-      poster:$("poster").value.trim(),
+      poster:posterPublicData.publicUrl,
       video_url:publicData.publicUrl
     });
 
@@ -266,7 +299,7 @@ $("filmForm").addEventListener("submit",async e => {
 
   }catch(err){
     status("Gagal: " + err.message +
-      "\nPeriksa tabel films, izin akses Supabase, dan bucket video.");
+      "\nPeriksa izin upload Supabase Storage dan pastikan bucket cinebreve-videos bersifat public.");
   }finally{
     $("saveBtn").disabled = false;
   }
