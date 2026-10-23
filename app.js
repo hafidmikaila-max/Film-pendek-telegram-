@@ -48,7 +48,22 @@
 
     if (!movies) return;
 
-    movies.innerHTML = visible.map(f => `
+    
+movies.innerHTML = visible.map(f => `
+  <button type="button" class="movie-card" data-id="${esc(f.id)}">
+    <span class="poster-wrap">
+      ${f.poster
+        ? `<img loading="lazy" src="${esc(f.poster)}" alt="${esc(f.title)}">`
+        : '<span class="poster-placeholder">▶</span>'}
+      <span class="play-badge" aria-hidden="true">▶ Reproducir</span>
+    </span>
+    <span class="movie-info">
+      <b>${esc(f.title)}</b>
+      <small>${esc(f.category)}</small>
+    </span>
+  </button>
+`).join('');
+ = visible.map(f => `
       <button type="button" class="movie-card" data-id="${esc(f.id)}">
         ${f.poster
           ? `<img loading="lazy" src="${esc(f.poster)}" alt="${esc(f.title)}">`
