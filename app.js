@@ -1,1 +1,174 @@
-const c=window.CINEBREVE,$=id=>document.getElementById(id);$('source').href=c.SOURCE_URL;$('tg1').href=c.TELEGRAM_URL;$('tg2').href=c.TELEGRAM_URL;$('menubtn').onclick=()=>$('nav').classList.toggle('hidden');let films=[],cat='Todas';const demo=[{id:'d1',title:'Romance',category:'Romance',poster:'https://images.unsplash.com/photo-1518837695005-2083093ee35b?auto=format&fit=crop&w=700&q=85',video_url:'',description:'Añade la URL de la película desde el panel de administración.'},{id:'d2',title:'Suspenso',category:'Suspenso',poster:'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=700&q=85',video_url:'',description:'Añade la URL de la película desde el panel de administración.'},{id:'d3',title:'Drama',category:'Drama',poster:'https://images.unsplash.com/photo-1511497584788-876760111969?auto=format&fit=crop&w=700&q=85',video_url:'',description:'Añade la URL de la película desde el panel de administración.'}];function ready(){return c.SUPABASE_URL&&!c.SUPABASE_URL.includes('PASTE_')&&c.SUPABASE_ANON_KEY&&!c.SUPABASE_ANON_KEY.includes('PASTE_')}async function load(){if(!ready()){films=demo;render();$('status').textContent='Modo de vista previa. Conecta Supabase para guardar películas reales.';return}try{let r=await fetch(c.SUPABASE_URL.replace(/\/$/,'')+'/rest/v1/films?select=*&order=created_at.desc',{headers:{apikey:c.SUPABASE_ANON_KEY,Authorization:'Bearer '+c.SUPABASE_ANON_KEY}});if(!r.ok)throw Error();films=await r.json();render()}catch{$('status').textContent='No se pudieron cargar las películas. Revisa config.js y schema.sql.'}}function render(){let q=$('search').value.toLowerCase(),cats=['Todas',...new Set(films.map(f=>f.category).filter(Boolean))];$('cats').innerHTML='';cats.forEach(x=>{let b=document.createElement('button');b.className='chip '+(cat===x?'active':'');b.textContent=x;b.onclick=()=>{cat=x;render()};$('cats').append(b)});let list=films.filter(f=>(cat==='Todas'||f.category===cat)&&((f.title||'').toLowerCase().includes(q)||(f.category||'').toLowerCase().includes(q)));$('movies').innerHTML='';$('status').textContent=list.length?list.length+' películas encontradas.':'No se encontraron películas.';list.forEach(f=>{let b=document.createElement('button');b.className='movie';let p=document.createElement('span');p.className='poster';let im=document.createElement('img');im.src=f.poster;im.alt=f.title;p.append(im);let t=document.createElement('b');t.textContent=f.title;let m=document.createElement('small');m.textContent=f.category;b.append(p,t,m);b.onclick=()=>play(f);$('movies').append(b)})}function play(f){$('ptitle').textContent=f.title;$('desc').textContent=f.description||'';$('external').href=f.video_url||c.SOURCE_URL;$('player').innerHTML='';let u=(f.video_url||'').trim();if(/\.(mp4|webm|ogg)(\?.*)?$/i.test(u)){let v=document.createElement('video');v.src=u;v.controls=true;v.playsInline=true;$('player').append(v)}else if(/youtube\.com\/embed\/|player\.vimeo\.com\/video\//i.test(u)){let i=document.createElement('iframe');i.src=u;i.allow='autoplay; encrypted-media; picture-in-picture';i.allowFullscreen=true;$('player').append(i)}else $('player').textContent='Este video está en el sitio de origen. Pulsa el botón rojo para abrirlo.';$('modal').classList.remove('hidden')}function close(){$('modal').classList.add('hidden');$('player').innerHTML=''}$('close').onclick=close;$('modal').onclick=e=>{if(e.target===$('modal'))close()};$('search').oninput=render;load();
+
+(() => {
+  'use strict';
+
+  const c = window.CINEBREVE || {};
+  const $ = id => document.getElementById(id);
+  const movies = $('movies');
+  const status = $('status');
+  const player = $('player');
+  const modal = $('modal');
+
+  let films = [];
+  let category = 'Todos';
+
+  if ($('tg1')) $('tg1').href = c.TELEGRAM_URL || 'https://t.me/';
+  if ($('tg2')) $('tg2').href = c.TELEGRAM_URL || 'https://t.me/';
+
+  if ($('menubtn') && $('nav')) {
+    $('menubtn').onclick = () => $('nav').classList.toggle('hidden');
+  }
+
+  const esc = value => String(value ?? '').replace(/[&<>"']/g, ch => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;',
+    '"': '&quot;', "'": '&#39;'
+  })[ch]);
+
+  function render() {
+    const query = ($('search')?.value || '').toLowerCase().trim();
+    const visible = films.filter(f =>
+      (category === 'Todos' || f.category === category) &&
+      (f.title + ' ' + f.category + ' ' + f.description)
+        .toLowerCase().includes(query)
+    );
+
+    if ($('cats')) {
+      const cats = ['Todos', ...new Set(films.map(f => f.category))];
+      $('cats').innerHTML = cats.map(cat =>
+        `<button type="button" data-cat="${esc(cat)}" class="${cat === category ? 'active' : ''}">${esc(cat)}</button>`
+      ).join('');
+
+      $('cats').querySelectorAll('[data-cat]').forEach(btn => {
+        btn.onclick = () => {
+          category = btn.dataset.cat;
+          render();
+        };
+      });
+    }
+
+    if (!movies) return;
+
+    movies.innerHTML = visible.map(f => `
+      <button type="button" class="movie-card" data-id="${esc(f.id)}">
+        ${f.poster
+          ? `<img loading="lazy" src="${esc(f.poster)}" alt="${esc(f.title)}">`
+          : '<div class="poster-placeholder">▶</div>'}
+        <span class="movie-info">
+          <b>${esc(f.title)}</b>
+          <small>${esc(f.category)}</small>
+        </span>
+      </button>
+    `).join('');
+
+    if (status) {
+      status.textContent = visible.length
+        ? ''
+        : 'No se encontraron películas.';
+    }
+
+    movies.querySelectorAll('[data-id]').forEach(btn => {
+      btn.onclick = () => {
+        const film = films.find(f => String(f.id) === btn.dataset.id);
+        if (film) play(film);
+      };
+    });
+  }
+
+  function play(film) {
+    if (!modal || !player) return;
+
+    $('ptitle').textContent = film.title;
+    $('desc').textContent = film.description || '';
+    player.innerHTML = '';
+
+    const url = (film.video_url || '').trim();
+
+    if (/\.(mp4|webm|ogg)(\?.*)?$/i.test(url) ||
+        /\/storage\/v1\/object\/public\//i.test(url)) {
+      const video = document.createElement('video');
+      video.src = url;
+      video.controls = true;
+      video.playsInline = true;
+      video.preload = 'metadata';
+      video.style.width = '100%';
+
+      video.onerror = () => {
+        const msg = document.createElement('p');
+        msg.textContent = 'No se pudo cargar el video. Comprueba la URL y los permisos del archivo.';
+        player.appendChild(msg);
+      };
+
+      player.appendChild(video);
+    } else if (/youtube\.com\/embed\/|player\.vimeo\.com\/video\//i.test(url)) {
+      const frame = document.createElement('iframe');
+      frame.src = url;
+      frame.title = film.title;
+      frame.allowFullscreen = true;
+      frame.style.width = '100%';
+      frame.style.aspectRatio = '16 / 9';
+      player.appendChild(frame);
+    } else {
+      player.textContent = 'El enlace de este video no es compatible con el reproductor.';
+    }
+
+    modal.classList.remove('hidden');
+  }
+
+  function closePlayer() {
+    modal?.classList.add('hidden');
+    if (player) player.innerHTML = '';
+  }
+
+  if ($('close')) $('close').onclick = closePlayer;
+  if (modal) modal.onclick = e => {
+    if (e.target === modal) closePlayer();
+  };
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') closePlayer();
+  });
+  if ($('search')) $('search').addEventListener('input', render);
+
+  async function load() {
+    if (!movies || !status) return;
+
+    if (!c.SUPABASE_URL || !c.SUPABASE_ANON_KEY) {
+      status.textContent = 'Falta la configuración de Supabase.';
+      return;
+    }
+
+    status.textContent = 'Cargando películas…';
+
+    try {
+      const response = await fetch(
+        c.SUPABASE_URL.replace(/\/$/, '') +
+        '/rest/v1/films?select=*&order=created_at.desc',
+        {
+          headers: {
+            apikey: c.SUPABASE_ANON_KEY,
+            Authorization: 'Bearer ' + c.SUPABASE_ANON_KEY
+          }
+        }
+      );
+
+      if (!response.ok) throw new Error('Supabase HTTP ' + response.status);
+
+      const data = await response.json();
+
+      films = data.map(f => ({
+        id: f.id,
+        title: f.title || 'Película sin título',
+        category: f.category || 'Películas',
+        description: f.description || '',
+        poster: f.poster || f.poster_url || '',
+        video_url: f.video_url || f.video_path || ''
+      }));
+
+      render();
+    } catch (err) {
+      console.error(err);
+      status.textContent = 'Error al cargar las películas. Revisa la conexión con Supabase.';
+    }
+  }
+
+  load();
+})();
