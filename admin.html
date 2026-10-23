@@ -1,1 +1,200 @@
-<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Admin CineBreve</title><link rel="stylesheet" href="style.css"><style>.box{background:#191922;border:1px solid #333;padding:18px;border-radius:16px;margin:18px 0}.field{display:block;margin:12px 0}.field span{display:block;color:#bbb;margin-bottom:6px}.field input,.field textarea{width:100%;padding:12px;background:#101017;color:white;border:1px solid #444;border-radius:9px}.field textarea{min-height:75px}.listrow{border-top:1px solid #333;padding:12px 0;display:flex;justify-content:space-between;gap:12px}.secondary,.danger{padding:9px 12px;border:0;border-radius:8px;background:#444;color:white}.danger{background:#9d2533}.note{color:#f3b9c0}.ok{color:#9fe0b2}</style></head><body><main class="app"><header><a class="brand" href="./"><span class="logo">▶</span><span><b>CineBreve</b><small>Panel de administración</small></span></a><a href="./">Inicio</a></header><p id="notice" class="note">Conecta Supabase mediante config.js antes de usar el panel.</p><section id="loginbox" class="box"><h2>Acceso de administrador</h2><form id="login"><label class="field"><span>Email</span><input id="email" type="email" required></label><label class="field"><span>Password</span><input id="password" type="password" required></label><button class="primary">Iniciar sesión</button></form><p id="loginmsg"></p></section><section id="manager" class="hidden"><div class="box"><button id="logout" class="secondary" style="float:right">Cerrar sesión</button><h2>Añadir / editar película</h2><form id="filmform"><input id="id" type="hidden"><label class="field"><span>Título de la película *</span><input id="title" required></label><label class="field"><span>Categoría *</span><input id="category" required placeholder="Romance, Drama, Acción..."></label><label class="field"><span>URL de la imagen del póster *</span><input id="poster" type="url" required placeholder="https://..."></label><label class="field"><span>URL del video o página de la película *</span><input id="video" type="url" required placeholder="URL MP4 o página de origen"></label><label class="field"><span>Deskripsi</span><textarea id="description"></textarea></label><button class="primary">Guardar película</button><button type="button" id="reset" class="secondary">Limpiar</button><p id="formmsg"></p></form></div><div class="box"><h2>Lista de películas</h2><div id="list">Cargando…</div></div></section><footer><a href="./">Volver al sitio</a></footer></main><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="config.js"></script><script src="admin.js"></script></body></html>
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Admin CineBreve</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#101017;color:#f7f7fb;font-family:Arial,sans-serif;padding:18px}
+main{max-width:700px;margin:auto}
+h1{color:#ff5367}
+.card{background:#1b1b25;padding:18px;border-radius:14px;margin:16px 0}
+input,textarea,select,button{width:100%;padding:13px;margin:7px 0;border-radius:9px;border:1px solid #414151;font-size:15px}
+input,textarea,select{background:#101017;color:white}
+button{background:#ed3548;color:white;border:0;font-weight:bold}
+button.secondary{background:#333342}
+small{color:#bbb}
+#status{white-space:pre-wrap;color:#ffd166}
+.item{border-top:1px solid #444;padding:12px 0;overflow-wrap:anywhere}
+a{color:#ff7585}
+</style>
+</head>
+<body>
+<main>
+<h1>▶ CineBreve Admin</h1>
+<p>Panel de administración de películas y videos.</p>
+
+<section class="card" id="loginBox">
+<h2>Iniciar sesión</h2>
+<p><small>Recibirás un enlace de acceso por correo electrónico.</small></p>
+<input id="email" type="email" placeholder="Correo del administrador">
+<button id="loginBtn">Enviar enlace de acceso</button>
+</section>
+
+<section class="card" id="panel" hidden>
+<h2>Subir una película</h2>
+<p id="account"></p>
+<form id="filmForm">
+<label>Título</label>
+<input id="title" required placeholder="Título de la película">
+
+<label>Categoría</label>
+<select id="category">
+<option>Drama</option>
+<option>Romance</option>
+<option>Acción</option>
+<option>Comedia</option>
+<option>Suspenso</option>
+<option>Terror</option>
+<option>Otros</option>
+</select>
+
+<label>Descripción</label>
+<textarea id="description" rows="3" placeholder="Descripción de la película"></textarea>
+
+<label>Imagen de portada (URL)</label>
+<input id="poster" type="url" required placeholder="https://...">
+
+<label>Archivo de video (MP4, WebM o MOV)</label>
+<input id="video" type="file" accept="video/mp4,video/webm,video/quicktime" required>
+<small>El archivo se subirá al almacenamiento de Supabase.</small>
+
+<button id="saveBtn" type="submit">Subir y publicar</button>
+</form>
+
+<p id="status"></p>
+<hr>
+<h2>Películas guardadas</h2>
+<div id="films">Cargando...</div>
+<button class="secondary" id="logoutBtn">Cerrar sesión</button>
+</section>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+const SUPABASE_URL = "https://qyokngdhajvmyeosepoe.supabase.co";
+const SUPABASE_KEY = "sb_publishable_KeCGjajqoucqzOYL5I7cWQ_-AbE0ND2";
+const ADMIN_EMAIL = "bolaindonesia97@gmail.com";
+const BUCKET = "cinebreve-videos";
+
+const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const $ = id => document.getElementById(id);
+
+function message(text){$("status").textContent=text;}
+
+async function refresh(){
+  const {data,error}=await db.from("films")
+    .select("*").order("created_at",{ascending:false});
+  if(error){$("films").textContent="Error: "+error.message;return;}
+  $("films").innerHTML="";
+  if(!data.length){$("films").textContent="Todavía no hay películas.";return;}
+  data.forEach(f=>{
+    const item=document.createElement("div");
+    item.className="item";
+    const name=document.createElement("strong");
+    name.textContent=f.title;
+    const info=document.createElement("p");
+    info.textContent=f.category||"";
+    const del=document.createElement("button");
+    del.className="secondary";
+    del.textContent="Eliminar película";
+    del.onclick=async()=>{
+      if(!confirm("¿Eliminar "+f.title+" de la lista?"))return;
+      const {error}=await db.from("films").delete().eq("id",f.id);
+      if(error){message(error.message);return;}
+      refresh();
+    };
+    item.append(name,info,del);
+    $("films").append(item);
+  });
+}
+
+async function showSession(){
+  const {data:{session}}=await db.auth.getSession();
+  const user=session?.user;
+  const allowed=user?.email?.toLowerCase()===ADMIN_EMAIL.toLowerCase();
+  $("loginBox").hidden=!!allowed;
+  $("panel").hidden=!allowed;
+  if(user&&!allowed){
+    $("loginBox").hidden=false;
+    $("panel").hidden=true;
+    message("Esta cuenta no está autorizada como administrador.");
+    await db.auth.signOut();
+  }
+  if(allowed){
+    $("account").textContent="Sesión: "+user.email;
+    refresh();
+  }
+}
+
+$("loginBtn").onclick=async()=>{
+  const email=$("email").value.trim();
+  if(email.toLowerCase()!==ADMIN_EMAIL.toLowerCase()){
+    alert("Correo no autorizado.");return;
+  }
+  const {error}=await db.auth.signInWithOtp({
+    email,
+    options:{emailRedirectTo:location.href.split("#")[0]}
+  });
+  alert(error?error.message:"Revisa tu correo y abre el enlace de acceso.");
+};
+
+$("filmForm").onsubmit=async e=>{
+  e.preventDefault();
+  const {data:{session}}=await db.auth.getSession();
+  if(session?.user?.email?.toLowerCase()!==ADMIN_EMAIL.toLowerCase()){
+    message("Inicia sesión con la cuenta de administrador.");return;
+  }
+
+  const file=$("video").files[0];
+  if(!file){message("Selecciona un archivo de video.");return;}
+  if(file.size>500*1024*1024){
+    message("El archivo supera el límite de 500 MB.");return;
+  }
+  if(!["video/mp4","video/webm","video/quicktime"].includes(file.type)){
+    message("Formato no admitido. Usa MP4, WebM o MOV.");return;
+  }
+
+  $("saveBtn").disabled=true;
+  message("Subiendo video... No cierres esta página.");
+
+  try{
+    const safeName=file.name.replace(/[^a-zA-Z0-9._-]/g,"_");
+    const path=Date.now()+"-"+safeName;
+    const {error:uploadError}=await db.storage.from(BUCKET)
+      .upload(path,file,{contentType:file.type,upsert:false});
+    if(uploadError)throw uploadError;
+
+    const {data:publicData}=db.storage.from(BUCKET).getPublicUrl(path);
+    const {error:insertError}=await db.from("films").insert({
+      title:$("title").value.trim(),
+      category:$("category").value,
+      description:$("description").value.trim(),
+      poster:$("poster").value.trim(),
+      video_url:publicData.publicUrl
+    });
+    if(insertError)throw insertError;
+
+    message("¡Película subida y publicada correctamente!");
+    $("filmForm").reset();
+    await refresh();
+  }catch(err){
+    message("No se pudo completar la operación: "+err.message+
+      "\nComprueba los permisos de Supabase y el bucket de almacenamiento.");
+  }finally{
+    $("saveBtn").disabled=false;
+  }
+};
+
+$("logoutBtn").onclick=async()=>{
+  await db.auth.signOut();
+  location.reload();
+};
+
+db.auth.onAuthStateChange(()=>setTimeout(showSession,0));
+showSession();
+</script>
+</body>
+</html>
