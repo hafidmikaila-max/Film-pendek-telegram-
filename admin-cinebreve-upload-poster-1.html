@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Admin CineBreve</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#101017;color:#f7f7fb;font-family:Arial,sans-serif;padding:18px}
+main{max-width:700px;margin:auto}
+h1{color:#ff5367}
+.card{background:#1b1b25;padding:18px;border-radius:14px;margin:16px 0}
+input,textarea,select,button{width:100%;padding:13px;margin:7px 0;border-radius:9px;border:1px solid #414151;font-size:15px}
+input,textarea,select{background:#101017;color:white}
+button{background:#ed3548;color:white;border:0;font-weight:bold;cursor:pointer}
+button:disabled{opacity:.6}
+.secondary{background:#333342}
+small{color:#bbb}
+#status,#loginStatus{white-space:pre-wrap;color:#ffd166}
+.item{border-top:1px solid #444;padding:12px 0;overflow-wrap:anywhere}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+<main>
+<h1>▶ Admin CineBreve</h1>
+<p>Kelola film dan video CineBreve.</p>
+
+<section class="card" id="loginBox">
+<h2>Masuk Admin</h2>
+<form id="loginForm">
+<label>Email admin</label>
+<input id="email" type="email" autocomplete="username" required placeholder="Email admin">
+<label>Kata sandi</label>
+<input id="password" type="password" autocomplete="current-password" required placeholder="Kata sandi">
+<button id="loginBtn" type="submit">Masuk</button>
+</form>
+<p id="loginStatus"></p>
+</section>
+
+<section class="card" id="panel" hidden>
+<h2>Unggah Film</h2>
+<p id="account"></p>
+
+<form id="filmForm">
+<label>Judul film</label>
+<input id="title" required placeholder="Judul film">
+
+<label>Kategori</label>
+<select id="category">
+<option>Drama</option>
+<option>Romansa</option>
+<option>Aksi</option>
+<option>Komedi</option>
+<option>Thriller</option>
+<option>Horor</option>
+<option>Lainnya</option>
+</select>
+
+<label>Deskripsi</label>
+<textarea id="description" rows="3" placeholder="Deskripsi film"></textarea>
+
+<label>Poster film (pilih gambar dari HP)</label>
+<input id="poster" type="file" accept="image/jpeg,image/png,image/webp,image/gif" required>
+<small>Pilih gambar dari galeri HP. Format JPG, PNG, WebP, atau GIF. Maksimal 10 MB.</small>
+
+<label>File video (MP4, WebM, MOV)</label>
+<input id="video" type="file" accept="video/mp4,video/webm,video/quicktime" required>
+<small>Batas ukuran video adalah 500 MB.</small>
+
+<button id="saveBtn" type="submit">Unggah dan Terbitkan</button>
+</form>
+
+<p id="status"></p>
+<hr>
+<h2>Daftar Film</h2>
+<div id="films">Memuat daftar film...</div>
+<button class="secondary" id="logoutBtn" type="button">Keluar</button>
+</section>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+const SUPABASE_URL = "https://qyokngdhajvmyeosepoe.supabase.co";
+const SUPABASE_KEY = "sb_publishable_KeCGjajqoucqzOYL5I7cWQ_-AbE0ND2";
+const ADMIN_EMAIL = "bolaindonesia97@gmail.com";
+const BUCKET = "cinebreve-videos";
+
+const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const $ = id => document.getElementById(id);
+
+function status(text){
+  $("status").textContent = text;
+}
+
+async function refreshFilms(){
+  const {data,error} = await db.from("films")
+    .select("*").order("created_at",{ascending:false});
+
+  if(error){
+    $("films").textContent = "Gagal memuat film: " + error.message;
+    return;
+  }
+
+  $("films").replaceChildren();
+
+  if(!data || data.length === 0){
+    $("films").textContent = "Belum ada film.";
+    return;
+  }
+
+  data.forEach(f => {
+    const item = document.createElement("div");
+    item.className = "item";
+
+    const name = document.createElement("strong");
+    name.textContent = f.title || "Tanpa judul";
+
+    const info = document.createElement("p");
+    info.textContent = f.category || "";
+
+    const del = document.createElement("button");
+    del.className = "secondary";
+    del.textContent = "Hapus film";
+
+    del.onclick = async () => {
+      if(!confirm("Yakin ingin menghapus film ini dari daftar?")) return;
+
+      const {error} = await db.from("films")
+        .delete().eq("id",f.id);
+
+      if(error){
+        status("Gagal menghapus film: " + error.message);
+        return;
+      }
+
+      status("Film dihapus dari daftar.");
+      await refreshFilms();
+    };
+
+    item.append(name,info,del);
+    $("films").append(item);
+  });
+}
+
+async function showSession(){
+  const {data,error} = await db.auth.getSession();
+
+  if(error){
+    $("loginStatus").textContent = error.message;
+    return;
+  }
+
+  const user = data.session?.user;
+  const allowed =
+    user?.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase();
+
+  $("loginBox").hidden = !!allowed;
+  $("panel").hidden = !allowed;
+
+  if(user && !allowed){
+    $("loginStatus").textContent = "Email ini tidak diizinkan.";
+    await db.auth.signOut();
+    return;
+  }
+
+  if(allowed){
+    $("account").textContent = "Login sebagai: " + user.email;
+    await refreshFilms();
+  }
+}
+
+$("loginForm").addEventListener("submit",async e => {
+  e.preventDefault();
+
+  const email = $("email").value.trim();
+  const password = $("password").value;
+
+  if(email.toLowerCase() !== ADMIN_EMAIL.toLowerCase()){
+    $("loginStatus").textContent = "Email admin tidak sesuai.";
+    return;
+  }
+
+  $("loginBtn").disabled = true;
+  $("loginStatus").textContent = "Sedang masuk...";
+
+  try{
+    const {error} = await db.auth.signInWithPassword({
+      email,
+      password
+    });
+
+    if(error) throw error;
+
+    $("loginStatus").textContent = "";
+    await showSession();
+
+  }catch(err){
+    $("loginStatus").textContent =
+      "Login gagal: " + err.message +
+      ". Pastikan akun sudah memiliki kata sandi di Supabase.";
+  }finally{
+    $("loginBtn").disabled = false;
+  }
+});
+
+$("filmForm").addEventListener("submit",async e => {
+  e.preventDefault();
+
+  const {data:{session}} = await db.auth.getSession();
+
+  if(session?.user?.email?.toLowerCase() !== ADMIN_EMAIL.toLowerCase()){
+    status("Silakan masuk menggunakan akun admin.");
+    return;
+  }
+
+  const posterFile = $("poster").files[0];
+  const file = $("video").files[0];
+
+  if(!posterFile){
+    status("Pilih gambar poster dari HP terlebih dahulu.");
+    return;
+  }
+
+  if(!["image/jpeg","image/png","image/webp","image/gif"].includes(posterFile.type)){
+    status("Format poster harus JPG, PNG, WebP, atau GIF.");
+    return;
+  }
+
+  if(posterFile.size > 10 * 1024 * 1024){
+    status("Ukuran poster melebihi 10 MB.");
+    return;
+  }
+
+  if(!file){
+    status("Pilih file video terlebih dahulu.");
+    return;
+  }
+
+  if(file.size > 500 * 1024 * 1024){
+    status("Ukuran video melebihi 500 MB.");
+    return;
+  }
+
+  if(!["video/mp4","video/webm","video/quicktime"].includes(file.type)){
+    status("Gunakan format MP4, WebM, atau MOV.");
+    return;
+  }
+
+  $("saveBtn").disabled = true;
+  status("Sedang mengunggah poster dan video. Jangan tutup halaman ini...");
+
+  try{
+    const safePosterName = posterFile.name.replace(/[^a-zA-Z0-9._-]/g,"_");
+    const posterPath = "posters/" + Date.now() + "-" + safePosterName;
+
+    const {error:posterUploadError} = await db.storage
+      .from(BUCKET)
+      .upload(posterPath,posterFile,{
+        contentType:posterFile.type,
+        upsert:false
+      });
+
+    if(posterUploadError) throw posterUploadError;
+
+    const {data:posterPublicData} = db.storage
+      .from(BUCKET)
+      .getPublicUrl(posterPath);
+
+    const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g,"_");
+    const videoPath = "videos/" + Date.now() + "-" + safeName;
+
+    const {error:uploadError} = await db.storage
+      .from(BUCKET)
+      .upload(videoPath,file,{
+        contentType:file.type,
+        upsert:false
+      });
+
+    if(uploadError) throw uploadError;
+
+    const {data:publicData} = db.storage
+      .from(BUCKET)
+      .getPublicUrl(videoPath);
+
+    const {error:insertError} = await db.from("films").insert({
+      title:$("title").value.trim(),
+      category:$("category").value,
+      description:$("description").value.trim(),
+      poster:posterPublicData.publicUrl,
+      video_url:publicData.publicUrl
+    });
+
+    if(insertError) throw insertError;
+
+    status("Film berhasil diunggah!");
+    $("filmForm").reset();
+    await refreshFilms();
+
+  }catch(err){
+    status("Gagal: " + err.message +
+      "\nPeriksa izin upload Supabase Storage dan pastikan bucket cinebreve-videos bersifat public.");
+  }finally{
+    $("saveBtn").disabled = false;
+  }
+});
+
+$("logoutBtn").addEventListener("click",async()=>{
+  await db.auth.signOut();
+  location.reload();
+});
+
+db.auth.onAuthStateChange(()=>{
+  showSession();
+});
+
+showSession();
+</script>
+</body>
+</html>
