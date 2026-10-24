@@ -13,11 +13,18 @@
   let films = [];
   let category = 'Todos';
 
-  if ($('tg1')) $('tg1').href = c.TELEGRAM_URL || 'https://t.me/';
-  if ($('tg2')) $('tg2').href = c.TELEGRAM_URL || 'https://t.me/';
+  if ($('tg1')) {
+    $('tg1').href = c.TELEGRAM_URL || 'https://t.me/';
+  }
+
+  if ($('tg2')) {
+    $('tg2').href = c.TELEGRAM_URL || 'https://t.me/';
+  }
 
   if ($('menubtn') && $('nav')) {
-    $('menubtn').onclick = () => $('nav').classList.toggle('hidden');
+    $('menubtn').onclick = () => {
+      $('nav').classList.toggle('hidden');
+    };
   }
 
   const esc = value =>
@@ -32,7 +39,9 @@
   function render() {
     if (!movies) return;
 
-    const query = ($('search')?.value || '').toLowerCase().trim();
+    const query = ($('search')?.value || '')
+      .toLowerCase()
+      .trim();
 
     const visible = films.filter(f =>
       (category === 'Todos' || f.category === category) &&
@@ -63,26 +72,53 @@
       });
     }
 
-    // Daftar poster dan tombol putar
+    // Kartu film dan tombol putar
     movies.innerHTML = visible.map(f => `
       <button
         type="button"
         class="movie-card"
         data-id="${esc(f.id)}"
         aria-label="Reproducir ${esc(f.title)}"
+        style="position:relative;display:block;width:100%;cursor:pointer;"
       >
-        <span class="poster-wrap">
+        <span
+          class="poster-wrap"
+          style="position:relative;display:block;width:100%;overflow:hidden;"
+        >
           ${
             f.poster
-              ? `<img loading="lazy"
+              ? `<img
+                   loading="lazy"
                    src="${esc(f.poster)}"
-                   alt="${esc(f.title)}">`
+                   alt="${esc(f.title)}"
+                   style="display:block;width:100%;height:auto;object-fit:cover;"
+                 >`
               : '<span class="poster-placeholder">▶</span>'
           }
-          <span class="play-badge">▶ Reproducir</span>
+
+          <span
+            style="
+              position:absolute;
+              top:50%;
+              left:50%;
+              transform:translate(-50%,-50%);
+              background:#e50914;
+              color:#fff;
+              padding:12px 18px;
+              border-radius:30px;
+              font-size:14px;
+              font-weight:bold;
+              white-space:nowrap;
+              z-index:99;
+              display:block;
+              visibility:visible;
+              opacity:1;
+              pointer-events:none;
+            "
+          >▶ Reproducir</span>
         </span>
 
-        <span class="movie-info">
+        <span class="movie-info" style="display:block;padding:10px;">
           <b>${esc(f.title)}</b>
           <small>${esc(f.category)}</small>
         </span>
@@ -153,8 +189,10 @@
           parsed.hostname === 'youtu.be' ||
           parsed.hostname.endsWith('.youtu.be')
         ) {
-          embedUrl = 'https://www.youtube.com/embed/' +
+          embedUrl =
+            'https://www.youtube.com/embed/' +
             parsed.pathname.slice(1);
+
         } else if (
           parsed.hostname.includes('youtube.com') &&
           parsed.pathname === '/watch'
@@ -162,7 +200,8 @@
           const videoId = parsed.searchParams.get('v');
 
           if (videoId) {
-            embedUrl = 'https://www.youtube.com/embed/' + videoId;
+            embedUrl =
+              'https://www.youtube.com/embed/' + videoId;
           }
         }
       } catch (_) {}
@@ -171,7 +210,8 @@
 
       frame.src = embedUrl;
       frame.title = film.title;
-      frame.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share';
+      frame.allow =
+        'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share';
       frame.allowFullscreen = true;
       frame.style.width = '100%';
       frame.style.aspectRatio = '16 / 9';
