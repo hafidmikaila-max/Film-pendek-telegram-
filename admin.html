@@ -237,9 +237,17 @@ $("filmForm").addEventListener("submit",async e => {
     return;
   }
 
-  if(file.size > 500 * 1024 * 1024){
-    status("Ukuran video melebihi 500 MB.");
-    return;
+  
+const maxVideoBytes = 49 * 1024 * 1024;
+
+if (file.size > maxVideoBytes) {
+  status(
+    "Video terlalu besar. Untuk paket gratis Supabase, " +
+    "coba kompres video hingga di bawah 49 MB."
+  );
+  return;
+}
+
   }
 
   if(!["video/mp4","video/webm","video/quicktime"].includes(file.type)){
