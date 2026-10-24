@@ -1,236 +1,60 @@
-
 (() => {
   'use strict';
 
-  const c = window.CINEBREVE || {};
   const $ = id => document.getElementById(id);
+  const config = window.CINEBREVE || {};
 
   const movies = $('movies');
   const status = $('status');
-  const player = $('player');
   const modal = $('modal');
+  const player = $('player');
 
   let films = [];
   let category = 'Todos';
 
-  if ($('tg1')) $('tg1').href = c.TELEGRAM_URL || 'https://t.me/';
-  if ($('tg2')) $('tg2').href = c.TELEGRAM_URL || 'https://t.me/';
-
-  if ($('menubtn') && $('nav')) {
-    $('menubtn').onclick = () => $('nav').classList.toggle('hidden');
-  }
-
-  const esc = value =>
-    String(value ?? '').replace(/[&<>"']/g, ch => ({
+  const escapeHTML = value =>
+    String(value ?? '').replace(/[&<>"']/g, char => ({
       '&': '&amp;',
       '<': '&lt;',
       '>': '&gt;',
       '"': '&quot;',
       "'": '&#39;'
-    })[ch]);
+    })[char]);
 
-  function render() {
-    if (!movies) return;
+  if ($('tg1')) {
+    $('tg1').href = config.TELEGRAM_URL || 'https://t.me/';
+  }
 
-    const query = ($('search')?.value || '').toLowerCase().trim();
+  if ($('tg2')) {
+    $('tg2').href = config.TELEGRAM_URL || 'https://t.me/';
+  }
 
-    const visible = films.filter(f =>
-      (category === 'Todos' || f.category === category) &&
-      (f.title + ' ' + f.category + ' ' + f.description)
-        .toLowerCase()
-        .includes(query)
-    );
-
-    if ($('cats')) {
-      const cats = ['Todos', ...new Set(films.map(f => f.category))];
-
-      $('cats').innerHTML = cats.map(cat => `
-        <button type="button"
-          data-cat="${esc(cat)}"
-          class="${cat === category ? 'active' : ''}">
-          ${esc(cat)}
-        </button>
-      `).join('');
-
-      $('cats').querySelectorAll('[data-cat]').forEach(btn => {
-        btn.onclick = () => {
-          category = btn.dataset.cat;
-          render();
-        };
-      });
-    }
-
-    // Poster dan tombol putar yang selalu terlihat
-    movies.innerHTML = visible.map(f => `
-      <div
-        class="movie-card"
-        data-id="${esc(f.id)}"
-        role="button"
-        tabindex="0"
-        aria-label="Reproducir ${esc(f.title)}"
-        style="display:block;position:relative;cursor:pointer;"
-      >
-        <div style="
-          position:relative;
-          display:block;
-          width:100%;
-          aspect-ratio:2/3;
-          background:#252530;
-          overflow:hidden;
-        ">
-          ${
-            f.poster
-              ? `<img
-                   src="${esc(f.poster)}"
-                   alt="${esc(f.title)}"
-                   loading="lazy"
-                   style="width:100%;height:100%;object-fit:cover;display:block;"
-                 >`
-              : '<span style="display:flex;align-items:center;justify-content:center;width:100%;height:100%;color:white;">▶</span>'
-          }
-
-          <span style="
-            position:absolute;
-            top:50%;
-            left:50%;
-            transform:translate(-50%,-50%);
-            display:block;
-            background:#e50914;
-            color:#fff;
-            padding:12px 18px;
-            border-radius:30px;
-            font-size:14px;
-            font-weight:bold;
-            white-space:nowrap;
-            z-index:10;
-            pointer-events:none;
-            visibility:visible;
-            opacity:1;
-          ">▶ Reproducir</span>
-        </div>
-
-        <div class="movie-info" style="display:block;padding:10px;color:white;">
-          <b>${esc(f.title)}</b>
-          <small style="display:block;">${esc(f.category)}</small>
-        </div>
-      </div>
-    `).join('');
-
-    if (status) {
-      status.textContent = visible.length
-        ? ''
-        : 'No se encontraron películas.';
-    }
-
-    // Klik pada poster atau tombol membuka pemutar
-    movies.querySelectorAll('[data-id]').forEach(card => {
-      const openFilm = () => {
-        const film = films.find(
-          f => String(f.id) === card.dataset.id
-        );
-        if (film) play(film);
-      };
-
-      card.addEventListener('click', openFilm);
-
-      card.addEventListener('keydown', event => {
-        if (event.key === 'Enter' || event.key === ' ') {
-          event.preventDefault();
-          openFilm();
-        }
-      });
+  // Menú móvil
+  if ($('menubtn') && $('nav')) {
+    $('menubtn').addEventListener('click', () => {
+      const nav = $('nav');
+      nav.classList.toggle('hidden');
+      $('menubtn').setAttribute(
+        'aria-expanded',
+        String(!nav.classList.contains('hidden'))
+      );
     });
   }
 
-  function play(film) {
-    if (!modal || !player) {
-      console.error('No se encuentra el reproductor o el modal.');
-      return;
-    }
-
-    if ($('ptitle')) $('ptitle').textContent = film.title;
-    if ($('desc')) $('desc').textContent = film.description || '';
-
-    player.innerHTML = '';
-
-    const url = (film.video_url || '').trim();
-
-    if (!url) {
-      player.textContent = 'El enlace del video no está disponible.';
-      modal.classList.remove('hidden');
-      return;
-    }
-
-    if (
-      /\.(mp4|webm|ogg)(\?.*)?$/i.test(url) ||
-      /\/storage\/v1\/object\/public\//i.test(url)
-    ) {
-      const video = document.createElement('video');
-      video.src = url;
-      video.controls = true;
-      video.playsInline = true;
-      video.preload = 'metadata';
-      video.style.width = '100%';
-
-      video.onerror = () => {
-        player.textContent =
-          'No se pudo cargar el video. Comprueba el enlace.';
-      };
-
-      player.appendChild(video);
-
-    } else if (
-      /youtube\.com\/embed\/|youtu\.be\/|youtube\.com\/watch\?/i.test(url) ||
-      /player\.vimeo\.com\/video\//i.test(url)
-    ) {
-      let embedUrl = url;
-
-      try {
-        const parsed = new URL(url);
-
-        if (
-          parsed.hostname === 'youtu.be' ||
-          parsed.hostname.endsWith('.youtu.be')
-        ) {
-          embedUrl =
-            'https://www.youtube.com/embed/' +
-            parsed.pathname.slice(1);
-        } else if (
-          parsed.hostname.includes('youtube.com') &&
-          parsed.pathname === '/watch'
-        ) {
-          const videoId = parsed.searchParams.get('v');
-          if (videoId) {
-            embedUrl = 'https://www.youtube.com/embed/' + videoId;
-          }
-        }
-      } catch (_) {}
-
-      const frame = document.createElement('iframe');
-      frame.src = embedUrl;
-      frame.title = film.title;
-      frame.allow =
-        'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share';
-      frame.allowFullscreen = true;
-      frame.style.width = '100%';
-      frame.style.aspectRatio = '16 / 9';
-
-      player.appendChild(frame);
-
-    } else {
-      player.textContent =
-        'El enlace de este video no es compatible con el reproductor.';
-    }
-
-    modal.classList.remove('hidden');
-  }
-
+  // Cerrar reproductor
   function closePlayer() {
+    if (player) {
+      const video = player.querySelector('video');
+      if (video) video.pause();
+      player.replaceChildren();
+    }
+
     if (modal) modal.classList.add('hidden');
-    if (player) player.innerHTML = '';
   }
 
-  if ($('close')) $('close').onclick = closePlayer;
+  if ($('close')) {
+    $('close').addEventListener('click', closePlayer);
+  }
 
   if (modal) {
     modal.addEventListener('click', event => {
@@ -242,14 +66,238 @@
     if (event.key === 'Escape') closePlayer();
   });
 
+  // Abrir película
+  function playFilm(film) {
+    if (!modal || !player) {
+      console.error('No se encuentra el reproductor.');
+      return;
+    }
+
+    player.replaceChildren();
+
+    if ($('ptitle')) {
+      $('ptitle').textContent = film.title;
+    }
+
+    if ($('desc')) {
+      $('desc').textContent = film.description || '';
+    }
+
+    const url = String(film.video_url || '').trim();
+
+    if (!url) {
+      player.textContent = 'El enlace del video no está disponible.';
+      modal.classList.remove('hidden');
+      return;
+    }
+
+    let parsedURL;
+
+    try {
+      parsedURL = new URL(url, window.location.href);
+
+      if (!['https:', 'http:'].includes(parsedURL.protocol)) {
+        throw new Error('URL no válida');
+      }
+    } catch (error) {
+      player.textContent = 'El enlace del video no es válido.';
+      modal.classList.remove('hidden');
+      return;
+    }
+
+    const hostname = parsedURL.hostname.toLowerCase();
+    const isYouTube =
+      hostname === 'youtube.com' ||
+      hostname.endsWith('.youtube.com') ||
+      hostname === 'youtu.be';
+
+    const isVimeo =
+      hostname === 'vimeo.com' ||
+      hostname.endsWith('.vimeo.com');
+
+    if (isYouTube || isVimeo) {
+      let embedURL = '';
+
+      if (isYouTube) {
+        let videoId = '';
+
+        if (hostname === 'youtu.be') {
+          videoId = parsedURL.pathname.split('/').filter(Boolean)[0] || '';
+        } else if (parsedURL.pathname === '/watch') {
+          videoId = parsedURL.searchParams.get('v') || '';
+        } else {
+          const match = parsedURL.pathname.match(
+            /\/(?:embed|shorts)\/([^/?]+)/
+          );
+          if (match) videoId = match[1];
+        }
+
+        if (videoId) {
+          embedURL =
+            'https://www.youtube.com/embed/' +
+            encodeURIComponent(videoId);
+        }
+      } else {
+        const match = parsedURL.pathname.match(
+          /\/(?:video\/)?(\d+)/
+        );
+
+        if (match) {
+          embedURL = 'https://player.vimeo.com/video/' + match[1];
+        }
+      }
+
+      if (!embedURL) {
+        player.textContent = 'No se reconoce el enlace del video.';
+      } else {
+        const frame = document.createElement('iframe');
+        frame.src = embedURL;
+        frame.title = film.title;
+        frame.allow =
+          'autoplay; encrypted-media; picture-in-picture; fullscreen';
+        frame.allowFullscreen = true;
+        frame.style.width = '100%';
+        frame.style.aspectRatio = '16 / 9';
+        frame.style.border = '0';
+
+        player.appendChild(frame);
+      }
+    } else {
+      const video = document.createElement('video');
+
+      video.controls = true;
+      video.playsInline = true;
+      video.preload = 'metadata';
+      video.style.width = '100%';
+      video.style.height = '100%';
+      video.style.objectFit = 'contain';
+
+      video.addEventListener('error', () => {
+        const message = document.createElement('p');
+        message.textContent =
+          'No se pudo cargar el video. Comprueba el archivo y su formato.';
+        player.replaceChildren(message);
+      });
+
+      video.src = parsedURL.href;
+      player.appendChild(video);
+    }
+
+    modal.classList.remove('hidden');
+  }
+
+  // Renderizar catálogo
+  function render() {
+    if (!movies) return;
+
+    const search = ($('search')?.value || '')
+      .toLowerCase()
+      .trim();
+
+    const visibleFilms = films.filter(film => {
+      const matchesCategory =
+        category === 'Todos' || film.category === category;
+
+      const searchableText =
+        `${film.title} ${film.category} ${film.description}`
+          .toLowerCase();
+
+      return matchesCategory && searchableText.includes(search);
+    });
+
+    if ($('cats')) {
+      const categories = [
+        'Todos',
+        ...new Set(films.map(film => film.category))
+      ];
+
+      $('cats').replaceChildren();
+
+      categories.forEach(cat => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.textContent = cat;
+        button.className = cat === category ? 'active' : '';
+        button.addEventListener('click', () => {
+          category = cat;
+          render();
+        });
+
+        $('cats').appendChild(button);
+      });
+    }
+
+    movies.replaceChildren();
+
+    visibleFilms.forEach(film => {
+      const card = document.createElement('article');
+      card.className = 'movie-card';
+
+      const posterWrap = document.createElement('div');
+      posterWrap.className = 'poster-wrap';
+
+      if (film.poster) {
+        const image = document.createElement('img');
+        image.src = film.poster;
+        image.alt = film.title;
+        image.loading = 'lazy';
+
+        image.addEventListener('error', () => {
+          image.style.display = 'none';
+        });
+
+        posterWrap.appendChild(image);
+      }
+
+      const playButton = document.createElement('button');
+      playButton.type = 'button';
+      playButton.className = 'play-badge';
+      playButton.textContent = '▶ Reproducir';
+      playButton.setAttribute(
+        'aria-label',
+        'Reproducir ' + film.title
+      );
+
+      // Klik langsung pada tombol putar
+      playButton.addEventListener('click', event => {
+        event.preventDefault();
+        event.stopPropagation();
+        playFilm(film);
+      });
+
+      posterWrap.appendChild(playButton);
+
+      const info = document.createElement('div');
+      info.className = 'movie-info';
+
+      const title = document.createElement('b');
+      title.textContent = film.title;
+
+      const genre = document.createElement('small');
+      genre.textContent = film.category;
+
+      info.append(title, genre);
+      card.append(posterWrap, info);
+      movies.appendChild(card);
+    });
+
+    if (status) {
+      status.textContent = visibleFilms.length
+        ? ''
+        : 'No se encontraron películas.';
+    }
+  }
+
+  // Buscar películas
   if ($('search')) {
     $('search').addEventListener('input', render);
   }
 
-  async function load() {
+  // Cargar datos de Supabase
+  async function loadFilms() {
     if (!movies || !status) return;
 
-    if (!c.SUPABASE_URL || !c.SUPABASE_ANON_KEY) {
+    if (!config.SUPABASE_URL || !config.SUPABASE_ANON_KEY) {
       status.textContent = 'Falta la configuración de Supabase.';
       return;
     }
@@ -258,39 +306,38 @@
 
     try {
       const response = await fetch(
-        c.SUPABASE_URL.replace(/\/$/, '') +
-        '/rest/v1/films?select=*&order=created_at.desc',
+        config.SUPABASE_URL.replace(/\/$/, '') +
+          '/rest/v1/films?select=*&order=created_at.desc',
         {
           headers: {
-            apikey: c.SUPABASE_ANON_KEY,
-            Authorization: 'Bearer ' + c.SUPABASE_ANON_KEY
+            apikey: config.SUPABASE_ANON_KEY,
+            Authorization: 'Bearer ' + config.SUPABASE_ANON_KEY
           }
         }
       );
 
       if (!response.ok) {
-        throw new Error('Supabase HTTP ' + response.status);
+        throw new Error('Error de Supabase: ' + response.status);
       }
 
       const data = await response.json();
 
-      films = data.map(f => ({
-        id: f.id,
-        title: f.title || 'Película sin título',
-        category: f.category || 'Películas',
-        description: f.description || '',
-        poster: f.poster || f.poster_url || '',
-        video_url: f.video_url || f.video_path || ''
+      films = data.map(item => ({
+        id: item.id,
+        title: item.title || 'Película sin título',
+        category: item.category || 'Películas',
+        description: item.description || '',
+        poster: item.poster || item.poster_url || '',
+        video_url: item.video_url || item.video_path || ''
       }));
 
       render();
-
-    } catch (err) {
-      console.error(err);
+    } catch (error) {
+      console.error('Error al cargar películas:', error);
       status.textContent =
-        'Error al cargar las películas. Revisa la conexión con Supabase.';
+        'Error al cargar las películas. Inténtalo de nuevo más tarde.';
     }
   }
 
-  load();
+  loadFilms();
 })();
