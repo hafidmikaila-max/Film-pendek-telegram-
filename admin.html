@@ -24,8 +24,40 @@
 
   <script src="https://pl31787884.profitableratecpmnetwork.com/55/d9/52/55d95203e281a108df48029df99e85e6.js"></script>
 
-  <!-- Perbaikan area hero: sembunyikan ilustrasi NK+ dan tampilkan iklan -->
   <style>
+    /* HAPUS LOGO NK DAN ILUSTRASI NK+ */
+    .nav > .brand,
+    .footer-brand,
+    .hero-art {
+      display: none !important;
+      visibility: hidden !important;
+    }
+
+    /* HEADER */
+    .nav {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    /* IKLAN PENGGANTI LOGO NK */
+    .header-ad-slot {
+      width: 320px;
+      max-width: 100%;
+      min-width: 0;
+      min-height: 50px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 1;
+      overflow: hidden;
+    }
+
+    .header-ad-slot iframe {
+      max-width: 100%;
+    }
+
+    /* IKLAN DI AREA HERO, PENGGANTI ILUSTRASI */
     .hero {
       grid-template-columns: minmax(0, 1fr) minmax(320px, 0.8fr);
     }
@@ -59,7 +91,23 @@
       overflow: hidden;
     }
 
+    .ad-placement-label {
+      font-size: 10px;
+      letter-spacing: 1.5px;
+      opacity: .65;
+    }
+
     @media (max-width: 720px) {
+      .nav {
+        flex-wrap: wrap;
+      }
+
+      .header-ad-slot {
+        order: 3;
+        width: 100%;
+        min-height: 50px;
+      }
+
       .hero {
         grid-template-columns: 1fr;
       }
@@ -81,7 +129,22 @@
 
 <body>
 <header class="nav">
-  <a class="brand" href="index.html" aria-label="NontonKu beranda">NONTON<span>KU</span><i></i></a>
+
+  <!-- LOGO NK DIHAPUS, DIGANTI IKLAN SPANDUK -->
+  <div class="header-ad-slot" aria-label="Iklan spanduk header">
+    <div class="ad-320x50-slot">
+      <script>
+        atOptions = {
+          'key': '4d14e0ed047da413a96ed9b0f0a45c55',
+          'format': 'iframe',
+          'height': 50,
+          'width': 320,
+          'params': {}
+        };
+      </script>
+      <script async src="https://www.highrevenueformat.com/4d14e0ed047da413a96ed9b0f0a45c55/invoke.js"></script>
+    </div>
+  </div>
 
   <nav class="nav-links">
     <a href="#beranda">Beranda</a>
@@ -204,7 +267,7 @@
 </main>
 
 <footer>
-  <a class="footer-brand" href="index.html">NONTON<span>KU</span></a>
+  <!-- LOGO NK FOOTER DIHAPUS -->
   <p>Tempat cerita dan sinema bertemu.</p>
 
   <div class="footer-links">
