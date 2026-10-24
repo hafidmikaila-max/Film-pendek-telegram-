@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#101017">
 <title>Admin CineBreve</title>
 <style>
 *{box-sizing:border-box}
@@ -60,13 +61,13 @@ small{color:#bbb}
 <label>Deskripsi</label>
 <textarea id="description" rows="3" placeholder="Deskripsi film"></textarea>
 
-<label>Poster film (pilih gambar dari HP)</label>
+<label>Poster film</label>
 <input id="poster" type="file" accept="image/jpeg,image/png,image/webp,image/gif" required>
-<small>Pilih gambar dari galeri HP. Format JPG, PNG, WebP, atau GIF. Maksimal 10 MB.</small>
+<small>Format JPG, PNG, WebP, atau GIF. Maksimal 10 MB.</small>
 
 <label>File video (MP4, WebM, MOV)</label>
 <input id="video" type="file" accept="video/mp4,video/webm,video/quicktime" required>
-<small>Batas ukuran video adalah 500 MB.</small>
+<small>Ukuran video maksimal 49 MB untuk pengaturan ini.</small>
 
 <button id="saveBtn" type="submit">Unggah dan Terbitkan</button>
 </form>
@@ -86,25 +87,31 @@ const SUPABASE_KEY = "sb_publishable_KeCGjajqoucqzOYL5I7cWQ_-AbE0ND2";
 const ADMIN_EMAIL = "bolaindonesia97@gmail.com";
 const BUCKET = "cinebreve-videos";
 
-const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const db = window.supabase.createClient(
+  SUPABASE_URL,
+  SUPABASE_KEY
+);
+
 const $ = id => document.getElementById(id);
 
-function status(text){
+function status(text) {
   $("status").textContent = text;
 }
 
-async function refreshFilms(){
-  const {data,error} = await db.from("films")
-    .select("*").order("created_at",{ascending:false});
+async function refreshFilms() {
+  const { data, error } = await db
+    .from("films")
+    .select("*")
+    .order("created_at", { ascending: false });
 
-  if(error){
+  if (error) {
     $("films").textContent = "Gagal memuat film: " + error.message;
     return;
   }
 
   $("films").replaceChildren();
 
-  if(!data || data.length === 0){
+  if (!data || data.length === 0) {
     $("films").textContent = "Belum ada film.";
     return;
   }
@@ -124,12 +131,16 @@ async function refreshFilms(){
     del.textContent = "Hapus film";
 
     del.onclick = async () => {
-      if(!confirm("Yakin ingin menghapus film ini dari daftar?")) return;
+      if (!confirm("Yakin ingin menghapus film ini dari daftar?")) {
+        return;
+      }
 
-      const {error} = await db.from("films")
-        .delete().eq("id",f.id);
+      const { error } = await db
+        .from("films")
+        .delete()
+        .eq("id", f.id);
 
-      if(error){
+      if (error) {
         status("Gagal menghapus film: " + error.message);
         return;
       }
@@ -138,15 +149,15 @@ async function refreshFilms(){
       await refreshFilms();
     };
 
-    item.append(name,info,del);
+    item.append(name, info, del);
     $("films").append(item);
   });
 }
 
-async function showSession(){
-  const {data,error} = await db.auth.getSession();
+async function showSession() {
+  const { data, error } = await db.auth.getSession();
 
-  if(error){
+  if (error) {
     $("loginStatus").textContent = error.message;
     return;
   }
@@ -158,25 +169,25 @@ async function showSession(){
   $("loginBox").hidden = !!allowed;
   $("panel").hidden = !allowed;
 
-  if(user && !allowed){
+  if (user && !allowed) {
     $("loginStatus").textContent = "Email ini tidak diizinkan.";
     await db.auth.signOut();
     return;
   }
 
-  if(allowed){
+  if (allowed) {
     $("account").textContent = "Login sebagai: " + user.email;
     await refreshFilms();
   }
 }
 
-$("loginForm").addEventListener("submit",async e => {
+$("loginForm").addEventListener("submit", async e => {
   e.preventDefault();
 
   const email = $("email").value.trim();
   const password = $("password").value;
 
-  if(email.toLowerCase() !== ADMIN_EMAIL.toLowerCase()){
+  if (email.toLowerCase() !== ADMIN_EMAIL.toLowerCase()) {
     $("loginStatus").textContent = "Email admin tidak sesuai.";
     return;
   }
@@ -184,32 +195,32 @@ $("loginForm").addEventListener("submit",async e => {
   $("loginBtn").disabled = true;
   $("loginStatus").textContent = "Sedang masuk...";
 
-  try{
-    const {error} = await db.auth.signInWithPassword({
+  try {
+    const { error } = await db.auth.signInWithPassword({
       email,
       password
     });
 
-    if(error) throw error;
+    if (error) throw error;
 
     $("loginStatus").textContent = "";
     await showSession();
 
-  }catch(err){
+  } catch (err) {
     $("loginStatus").textContent =
       "Login gagal: " + err.message +
-      ". Pastikan akun sudah memiliki kata sandi di Supabase.";
-  }finally{
+      ". Pastikan email dan kata sandi akun Supabase benar.";
+  } finally {
     $("loginBtn").disabled = false;
   }
 });
 
-$("filmForm").addEventListener("submit",async e => {
+$("filmForm").addEventListener("submit", async e => {
   e.preventDefault();
 
-  const {data:{session}} = await db.auth.getSession();
+  const { data: { session } } = await db.auth.getSession();
 
-  if(session?.user?.email?.toLowerCase() !== ADMIN_EMAIL.toLowerCase()){
+  if (session?.user?.email?.toLowerCase() !== ADMIN_EMAIL.toLowerCase()) {
     status("Silakan masuk menggunakan akun admin.");
     return;
   }
@@ -217,40 +228,34 @@ $("filmForm").addEventListener("submit",async e => {
   const posterFile = $("poster").files[0];
   const file = $("video").files[0];
 
-  if(!posterFile){
-    status("Pilih gambar poster dari HP terlebih dahulu.");
+  if (!posterFile) {
+    status("Pilih gambar poster terlebih dahulu.");
     return;
   }
 
-  if(!["image/jpeg","image/png","image/webp","image/gif"].includes(posterFile.type)){
+  if (!["image/jpeg", "image/png", "image/webp", "image/gif"].includes(posterFile.type)) {
     status("Format poster harus JPG, PNG, WebP, atau GIF.");
     return;
   }
 
-  if(posterFile.size > 10 * 1024 * 1024){
+  if (posterFile.size > 10 * 1024 * 1024) {
     status("Ukuran poster melebihi 10 MB.");
     return;
   }
 
-  if(!file){
+  if (!file) {
     status("Pilih file video terlebih dahulu.");
     return;
   }
 
-  
-const maxVideoBytes = 49 * 1024 * 1024;
+  const maxVideoBytes = 49 * 1024 * 1024;
 
-if (file.size > maxVideoBytes) {
-  status(
-    "Video terlalu besar. Untuk paket gratis Supabase, " +
-    "coba kompres video hingga di bawah 49 MB."
-  );
-  return;
-}
-
+  if (file.size > maxVideoBytes) {
+    status("Video terlalu besar. Coba kompres video hingga di bawah 49 MB.");
+    return;
   }
 
-  if(!["video/mp4","video/webm","video/quicktime"].includes(file.type)){
+  if (!["video/mp4", "video/webm", "video/quicktime"].includes(file.type)) {
     status("Gunakan format MP4, WebM, atau MOV.");
     return;
   }
@@ -258,67 +263,69 @@ if (file.size > maxVideoBytes) {
   $("saveBtn").disabled = true;
   status("Sedang mengunggah poster dan video. Jangan tutup halaman ini...");
 
-  try{
-    const safePosterName = posterFile.name.replace(/[^a-zA-Z0-9._-]/g,"_");
+  try {
+    const safePosterName = posterFile.name.replace(/[^a-zA-Z0-9._-]/g, "_");
     const posterPath = "posters/" + Date.now() + "-" + safePosterName;
 
-    const {error:posterUploadError} = await db.storage
+    const { error: posterUploadError } = await db.storage
       .from(BUCKET)
-      .upload(posterPath,posterFile,{
-        contentType:posterFile.type,
-        upsert:false
+      .upload(posterPath, posterFile, {
+        contentType: posterFile.type,
+        upsert: false
       });
 
-    if(posterUploadError) throw posterUploadError;
+    if (posterUploadError) throw posterUploadError;
 
-    const {data:posterPublicData} = db.storage
+    const { data: posterPublicData } = db.storage
       .from(BUCKET)
       .getPublicUrl(posterPath);
 
-    const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g,"_");
+    const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
     const videoPath = "videos/" + Date.now() + "-" + safeName;
 
-    const {error:uploadError} = await db.storage
+    const { error: uploadError } = await db.storage
       .from(BUCKET)
-      .upload(videoPath,file,{
-        contentType:file.type,
-        upsert:false
+      .upload(videoPath, file, {
+        contentType: file.type,
+        upsert: false
       });
 
-    if(uploadError) throw uploadError;
+    if (uploadError) throw uploadError;
 
-    const {data:publicData} = db.storage
+    const { data: publicData } = db.storage
       .from(BUCKET)
       .getPublicUrl(videoPath);
 
-    const {error:insertError} = await db.from("films").insert({
-      title:$("title").value.trim(),
-      category:$("category").value,
-      description:$("description").value.trim(),
-      poster:posterPublicData.publicUrl,
-      video_url:publicData.publicUrl
+    const { error: insertError } = await db.from("films").insert({
+      title: $("title").value.trim(),
+      category: $("category").value,
+      description: $("description").value.trim(),
+      poster: posterPublicData.publicUrl,
+      video_url: publicData.publicUrl
     });
 
-    if(insertError) throw insertError;
+    if (insertError) throw insertError;
 
     status("Film berhasil diunggah!");
     $("filmForm").reset();
     await refreshFilms();
 
-  }catch(err){
-    status("Gagal: " + err.message +
-      "\nPeriksa izin upload Supabase Storage dan pastikan bucket cinebreve-videos bersifat public.");
-  }finally{
+  } catch (err) {
+    status(
+      "Gagal: " + err.message +
+      "\nPeriksa izin upload Supabase Storage dan batas ukuran file."
+    );
+  } finally {
     $("saveBtn").disabled = false;
   }
 });
 
-$("logoutBtn").addEventListener("click",async()=>{
+$("logoutBtn").addEventListener("click", async () => {
   await db.auth.signOut();
   location.reload();
 });
 
-db.auth.onAuthStateChange(()=>{
+db.auth.onAuthStateChange(() => {
   showSession();
 });
 
