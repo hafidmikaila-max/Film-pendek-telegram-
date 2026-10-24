@@ -45,7 +45,8 @@
       const cats = ['Todos', ...new Set(films.map(f => f.category))];
 
       $('cats').innerHTML = cats.map(cat => `
-        <button type="button" data-cat="${esc(cat)}"
+        <button type="button"
+          data-cat="${esc(cat)}"
           class="${cat === category ? 'active' : ''}">
           ${esc(cat)}
         </button>
@@ -59,36 +60,59 @@
       });
     }
 
+    // Poster dan tombol putar yang selalu terlihat
     movies.innerHTML = visible.map(f => `
-      <div class="movie-card" data-id="${esc(f.id)}"
-        role="button" tabindex="0"
+      <div
+        class="movie-card"
+        data-id="${esc(f.id)}"
+        role="button"
+        tabindex="0"
         aria-label="Reproducir ${esc(f.title)}"
-        style="position:relative;cursor:pointer;">
-
-        <span class="poster-wrap"
-          style="position:relative;display:block;width:100%;overflow:hidden;">
+        style="display:block;position:relative;cursor:pointer;"
+      >
+        <div style="
+          position:relative;
+          display:block;
+          width:100%;
+          aspect-ratio:2/3;
+          background:#252530;
+          overflow:hidden;
+        ">
           ${
             f.poster
-              ? `<img loading="lazy" src="${esc(f.poster)}"
+              ? `<img
+                   src="${esc(f.poster)}"
                    alt="${esc(f.title)}"
-                   style="display:block;width:100%;height:auto;object-fit:cover;">`
-              : '<span class="poster-placeholder">▶</span>'
+                   loading="lazy"
+                   style="width:100%;height:100%;object-fit:cover;display:block;"
+                 >`
+              : '<span style="display:flex;align-items:center;justify-content:center;width:100%;height:100%;color:white;">▶</span>'
           }
 
-          <span
-            style="position:absolute;top:50%;left:50%;
-              transform:translate(-50%,-50%);
-              background:#e50914;color:#fff;padding:12px 18px;
-              border-radius:30px;font-size:14px;font-weight:bold;
-              white-space:nowrap;z-index:5;pointer-events:none;">
-            ▶ Reproducir
-          </span>
-        </span>
+          <span style="
+            position:absolute;
+            top:50%;
+            left:50%;
+            transform:translate(-50%,-50%);
+            display:block;
+            background:#e50914;
+            color:#fff;
+            padding:12px 18px;
+            border-radius:30px;
+            font-size:14px;
+            font-weight:bold;
+            white-space:nowrap;
+            z-index:10;
+            pointer-events:none;
+            visibility:visible;
+            opacity:1;
+          ">▶ Reproducir</span>
+        </div>
 
-        <span class="movie-info" style="display:block;padding:10px;">
+        <div class="movie-info" style="display:block;padding:10px;color:white;">
           <b>${esc(f.title)}</b>
-          <small>${esc(f.category)}</small>
-        </span>
+          <small style="display:block;">${esc(f.category)}</small>
+        </div>
       </div>
     `).join('');
 
@@ -98,21 +122,21 @@
         : 'No se encontraron películas.';
     }
 
-    function openFilm(element) {
-      const film = films.find(
-        f => String(f.id) === element.dataset.id
-      );
+    // Klik pada poster atau tombol membuka pemutar
+    movies.querySelectorAll('[data-id]').forEach(card => {
+      const openFilm = () => {
+        const film = films.find(
+          f => String(f.id) === card.dataset.id
+        );
+        if (film) play(film);
+      };
 
-      if (film) play(film);
-    }
+      card.addEventListener('click', openFilm);
 
-    movies.querySelectorAll('[data-id]').forEach(element => {
-      element.addEventListener('click', () => openFilm(element));
-
-      element.addEventListener('keydown', event => {
+      card.addEventListener('keydown', event => {
         if (event.key === 'Enter' || event.key === ' ') {
           event.preventDefault();
-          openFilm(element);
+          openFilm();
         }
       });
     });
@@ -120,15 +144,12 @@
 
   function play(film) {
     if (!modal || !player) {
-      console.error('Elemen pemutar atau modal tidak ditemukan.');
+      console.error('No se encuentra el reproductor o el modal.');
       return;
     }
 
-    const title = $('ptitle');
-    const desc = $('desc');
-
-    if (title) title.textContent = film.title;
-    if (desc) desc.textContent = film.description || '';
+    if ($('ptitle')) $('ptitle').textContent = film.title;
+    if ($('desc')) $('desc').textContent = film.description || '';
 
     player.innerHTML = '';
 
@@ -167,7 +188,10 @@
       try {
         const parsed = new URL(url);
 
-        if (parsed.hostname === 'youtu.be') {
+        if (
+          parsed.hostname === 'youtu.be' ||
+          parsed.hostname.endsWith('.youtu.be')
+        ) {
           embedUrl =
             'https://www.youtube.com/embed/' +
             parsed.pathname.slice(1);
